@@ -28,6 +28,7 @@
         <input id="points_open" type="checkbox">Open path</input>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <input id="reset_view" type="button" value="Reset" onclick="onResetViewClick();"></input>
+        <input id="clear_view" type="button" value="Clear All" onclick="onClearAllClick();"></input>
     </div>
     <script type="text/javascript">
         var paperElement = document.getElementById("canvaz");
@@ -228,6 +229,12 @@
             addPaths();
             if (pathsJSONData.length == 1)
                 onResetViewClick();
+            render();
+        }
+
+        var onClearAllClick = function() {
+            clearVisData();
+            clearPathsJSONData();
             render();
         }
 
