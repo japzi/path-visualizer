@@ -224,14 +224,14 @@
             render();
         }
 
-        render();
-
         var onAddClick = function() {
             addPaths();
             if (pathsJSONData.length == 1)
                 onResetViewClick();
             render();
         }
+
+        onAddClick();
 
         //*********************************************************
         // Zoom/Pan handling
