@@ -1,0 +1,313 @@
+<html>
+    <head>
+        <style>
+        .donthighlight {
+            -moz-user-select: none;
+            -webkit-user-select: none;
+        }
+        </style>
+    </head>
+    <body>
+      <h2>Path Visualizer</h2>
+      <!-- should be loaded in this order --> 
+      <script type="text/javascript" src="lib/raphael.js"></script>
+      <div style="position:absolute; left:0; top: 0;" id="canvaz"></div>
+      <div style="position:absolute; left:0; top: 610;">
+        <textarea id="points" cols="130" rows="8">
+[[{"x":20,"y":20},{"x":500,"y":20},{"x":500,"y":500},{"x":20,"y":500}], [{"x":100,"y":100}, {"x":150, "y":100}, {"x":150, "y":150}, {"x":200, "y":150}, {"x": 200, "y": 200}, {"x":100, "y":200}]]
+        </textarea>
+        <br/>
+        <input type="text" id="points_name" value="no name" width="20"></input>
+        <select id="points_color">
+            <option value="red">red</option>
+            <option value="green">green</option>
+            <option value="blue">blue</option>
+            <option value="black">black</option>
+        </select>
+        <input id="points_add" type="button" value="Add" onclick="onAddClick();"></input>
+        <input id="points_open" type="checkbox">Open path</input>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <input id="reset_view" type="button" value="Reset" onclick="onResetViewClick();"></input>
+    </div>
+    <script type="text/javascript">
+        var paperElement = document.getElementById("canvaz");
+        var paperWidth = 800;
+        var paperHeight = 600;
+        var paper = Raphael(paperElement, paperWidth, paperHeight);
+
+        paper.canvas.style.backgroundColor = '#fff';
+
+        var pathsJSONData = [];
+        var pathsVisData = [];
+        var gridVisData = [];
+
+        var tx = 0;
+        var ty = 0;
+        var s = 1;
+
+        // bounding box
+        var minX = Infinity;
+        var minY = Infinity;
+        var maxX = -Infinity;
+        var maxY = -Infinity;
+
+        var calculateBoundingBox = function() {
+            for (var i = 0; i < pathsJSONData.length; i++) {
+                paths = pathsJSONData[i];
+                for (var j = 0; j < paths.json.length; j++) {
+                    for (var k = 0; k < paths.json[j].length; k++) {
+                        minX = Math.min(minX, paths.json[j][k].x);
+                        maxX = Math.max(maxX, paths.json[j][k].x);
+                        minY = Math.min(minY, paths.json[j][k].y);
+                        maxY = Math.max(maxY, paths.json[j][k].y);
+                    }
+                }
+            }
+        }
+
+        var addPaths = function() {
+            pathsJSONData.push({
+                "json": JSON.parse(document.getElementById("points").value),
+                "color": document.getElementById("points_color").value,
+                "title": document.getElementById("points_name").value,
+                "isOpen": document.getElementById("points_name").checked
+            });
+        }
+
+        var clearVisData = function() {
+            for (var i = 0; i < pathsVisData.length; i++) {
+                pathsVisData[i].remove();
+            }
+            for (var i = 0; i < gridVisData.length; i++) {
+                gridVisData[i].remove();
+            }
+            pathsVisData = [];
+            gridVisData = [];
+        }
+
+        var clearPathsJSONData = function() {
+            minX = Infinity;
+            minY = Infinity;
+            maxX = -Infinity;
+            maxY = -Infinity;
+            pathsJSONData = [];
+            clearPathsVisData();
+        }
+        
+        var transform = function(x, y) {
+            return "" + (tx + s * x) + "," + (ty + s * y);
+        }
+
+        var drawGrid = function() {
+            var drawVerticalGridLine = function(x, ymin, ymax) {
+                var path = "M" + transform(x, ymin)
+                path += "L" + transform(x, ymax)
+                gridVisData.push(paper.path(path).attr({
+                    stroke: "#eee",
+                    "stroke-width": 1,
+                }));
+                
+            }
+            var drawHorizontalGridLine = function(y, xmin, xmax) {
+                var path = "M" + transform(xmin, y)
+                path += "L" + transform(xmax, y)
+                gridVisData.push(paper.path(path).attr({
+                    stroke: "#eee",
+                    "stroke-width": 1,
+                }));
+            }
+
+            var drawVerticalLabel = function(x, ymin, ymax) {
+                gridVisData.push(paper.text(tx + s * x, ty + s * ymax - 10, x)
+                    .attr({fill: '#999', class: "donthighlight"}));
+            }
+
+            var drawHorizontalLabel = function(y, xmin, xmax) {
+                gridVisData.push(paper.text(tx + s * xmin + 10, ty + s * y, y)
+                    .transform('R270')
+                    .attr({fill: '#999', class: "donthighlight"}));
+            }
+
+            var drawRulers = function() {
+                gridVisData.push(paper.rect(0, 0, 20, paperHeight)
+                    .attr({fill: '#eee', stroke: 'none', "fill-opacity": '0.3'}));
+                gridVisData.push(paper.rect(0, paperHeight - 20, paperWidth, 20)
+                    .attr({fill: '#eee', stroke: 'none', "fill-opacity": '0.3'}));
+            }
+
+            var startX = Math.floor(minX);
+            var startY = Math.floor(minY);
+            var gap = Math.floor(20 / s);
+            var x = 0, y = 0, i = 0;
+            var lowerLimitX = -tx / s;
+            var upperLimitX = (paperWidth - tx) / s;
+            var lowerLimitY = -ty / s;
+            var upperLimitY = (paperHeight - ty) / s;
+            // lines
+            while (x < upperLimitX) {
+                x = startX + i * gap; i++;
+                drawVerticalGridLine(x, lowerLimitY, upperLimitY);
+            }            
+            x = 0; i = 0;
+            while (x >= lowerLimitX) {
+                x = startX + i * gap; i--;
+                drawVerticalGridLine(x, lowerLimitY, upperLimitY);
+            }
+            y = 0; i = 0;
+            while (y < upperLimitY) {
+                y = startY + i * gap; i++;
+                drawHorizontalGridLine(y, lowerLimitX, upperLimitX);
+            }            
+            y = 0; i = 0;
+            while (y >= lowerLimitY) {
+                y = startY + i * gap; i--;
+                drawHorizontalGridLine(y, lowerLimitX, upperLimitX);
+            }
+
+            drawRulers();
+
+            // labels
+            gap = 2 * gap;
+            x = 0; i = 0;
+            while (x < upperLimitX) {
+                x = startX + i * gap; i++;
+                drawVerticalLabel(x, lowerLimitY, upperLimitY);
+            }            
+            x = 0; i = 0;
+            while (x >= lowerLimitX) {
+                x = startX + i * gap; i--;
+                drawVerticalLabel(x, lowerLimitY, upperLimitY);
+            }
+            y = 0; i = 0;
+            while (y < upperLimitY) {
+                y = startY + i * gap; i++;
+                drawHorizontalLabel(y, lowerLimitX, upperLimitX);
+            }            
+            y = 0; i = 0;
+            while (y >= lowerLimitY) {
+                y = startY + i * gap; i--;
+                drawHorizontalLabel(y, lowerLimitX, upperLimitX);
+            }
+        }
+
+        var render = function() {
+            if (pathsJSONData.length == 0)
+                return;
+            clearVisData();
+            drawGrid();
+            for (var i = 0; i < pathsJSONData.length; i++) {
+                paths = pathsJSONData[i];
+                for (var j = 0; j < paths.json.length; j++) {
+                    path = "M" + transform(paths.json[j][0].x, paths.json[j][0].y)
+                    for (var k = 1; k < paths.json[j].length; k++) {
+                        path += "L" +  transform(paths.json[j][k].x, paths.json[j][k].y)
+                    }
+                    if (!paths.isOpen)
+                        path += "L" +  transform(paths.json[j][0].x, paths.json[j][0].y)
+                    pathsVisData.push(paper.path(path).attr({
+                        stroke: paths.color,
+                        "stroke-width": 1,
+                    }));
+                }
+            }
+        }
+
+        var onResetViewClick = function() {
+            calculateBoundingBox();
+            w = maxX - minX;
+            h = maxY - minY;
+            var s1 = paperWidth / w;
+            var s2 = paperHeight / h;
+            s = Math.min(s1, s2);
+            tx = (paperWidth - s * (2 * minX + w)) / 2;
+            ty = (paperHeight - s * (2 * minY + h)) / 2;
+            render();
+        }
+
+        render();
+
+        var onAddClick = function() {
+            addPaths();
+            if (pathsJSONData.length == 1)
+                onResetViewClick();
+            render();
+        }
+
+        //*********************************************************
+        // Zoom/Pan handling
+        
+        // transforms screen coordinates into paper coordinates
+        var transformEventCoords = function(event) {
+            return {
+                x: event.clientX - paperElement.offsetLeft,
+                y: event.clientY - paperElement.offsetTop
+            };
+        }
+        
+        var doZoom = function(coords, factor) {
+            if (factor < 0) {
+                factor = 0.95;
+            } else {
+                factor = 1.05;
+            }
+
+            tx = factor * tx + (1 - factor) * coords.x;
+            ty = factor * ty + (1 - factor) * coords.y;
+
+            s = ((s || 1) * factor) || 1;
+
+            render();
+        }
+
+        /* Event handler for mouse wheel event.   */
+        var mousewheel = function(event) {
+            var delta = 0;
+
+            if (!event) /* For IE. */
+                event = window.event;
+            if (event.wheelDelta) { /* IE/Opera. */
+                delta = event.wheelDelta / 120;
+            } else if (event.detail) { /** Mozilla case. */
+                delta = -event.detail / 3;
+            }
+            if (delta) {
+                doZoom(transformEventCoords(event), delta);
+            }
+            if (event.preventDefault)
+                event.preventDefault();
+            event.returnValue = false;
+        }
+
+        var dragMouseUp = function() {
+            /* stop moving when mouse button is released:*/
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+
+        var dragStartX = 0, dragStartY = 0;
+
+        var dragMouseMove = function(e) {
+            e = e || window.event;
+            // calculate the new cursor position:
+            tx -= dragStartX - e.clientX;
+            ty -= dragStartY - e.clientY;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+
+            render();
+        }
+
+        var dragMouseDown = function(e) {
+            e = e || window.event;
+            // get the mouse cursor position at startup:
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            document.onmouseup = dragMouseUp;
+            // call a function whenever the cursor moves:
+            document.onmousemove = dragMouseMove;
+        }
+
+        paperElement.onmousewheel = mousewheel;
+        paperElement.onmousedown = dragMouseDown;
+    </script>
+    </body></html>
