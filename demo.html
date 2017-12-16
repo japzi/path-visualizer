@@ -29,6 +29,12 @@
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <input id="reset_view" type="button" value="Reset" onclick="onResetViewClick();"></input>
         <input id="clear_view" type="button" value="Clear All" onclick="onClearAllClick();"></input>
+        <select id="decimals" onchange="onDecimalsChanged();">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+        </select>
     </div>
     <script type="text/javascript">
         var paperElement = document.getElementById("canvaz");
@@ -45,6 +51,8 @@
         var tx = 0;
         var ty = 0;
         var s = 1;
+
+        var decimals = 0;
 
         // bounding box
         var minX = Infinity;
@@ -99,6 +107,11 @@
             return "" + (tx + s * x) + "," + (ty + s * y);
         }
 
+        var onDecimalsChanged = function() {
+            decimals = document.getElementById("decimals").value;
+            render();
+        }
+
         var drawGrid = function() {
             var drawVerticalGridLine = function(x, ymin, ymax) {
                 var path = "M" + transform(x, ymin)
@@ -119,12 +132,12 @@
             }
 
             var drawVerticalLabel = function(x, ymin, ymax) {
-                gridVisData.push(paper.text(tx + s * x, ty + s * ymax - 10, x)
+                gridVisData.push(paper.text(tx + s * x, ty + s * ymax - 10, x.toFixed(decimals))
                     .attr({fill: '#999', class: "donthighlight"}));
             }
 
             var drawHorizontalLabel = function(y, xmin, xmax) {
-                gridVisData.push(paper.text(tx + s * xmin + 10, ty + s * y, y)
+                gridVisData.push(paper.text(tx + s * xmin + 10, ty + s * y, y.toFixed(decimals))
                     .transform('R270')
                     .attr({fill: '#999', class: "donthighlight"}));
             }
